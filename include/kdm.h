@@ -6,29 +6,29 @@
 #include <stdio.h>
 #include <Windows.h>
 
-size_t kdmFileSize(FILE* file);
-bool   kdmWriteToFile(const char* name, char* buf, size_t size);
+size_t kdm_get_file_size(FILE* file);
+bool   kdm_write_to_file(const char* filename, char* buffer, size_t size);
 
-char* kdmReadTargetFile(const char* name);
-void  kdmFreeTarget(char* driverBuf);
+char* kdm_read_target_file(const char* filename);
+void  kdm_free_target(char* driver_buffer);
 
-bool kdmDetectHypervisor(char** vendorString);
+bool kdm_detect_hypervisor(char** vendor_string);
 
-int         kdmGetFirmwareType(void);
-const char* kdmGetFirmwareTypeString(int type);
+FIRMWARE_TYPE kdm_get_firmware_type(void);
+const char*   kdm_get_firmware_type_str(FIRMWARE_TYPE type);
 
-bool kdmQueryHVCI(bool* enabled, bool* strictMode, bool* IUMEnabled);
+bool kdm_query_hvci(bool* enabled, bool* strict_mode, bool* ium_enabled);
 
-PVOID kdmProcessHeap(void);
-PVOID kdmHeapAlloc(SIZE_T size);
-void  kdmHeapFree(PVOID baseAddress);
+PVOID kdm_get_heap(void);
+PVOID kdm_alloc_heap(SIZE_T size);
+void  kdm_free_heap(PVOID base_address);
 
-wchar_t kdmLowerW(wchar_t c);
-int     kdmWstrcmpi(const wchar_t *s1, const wchar_t *s2);
+wchar_t kdm_lowercase_w(wchar_t c);
+int     kdm_wstrcmpi(const wchar_t *s1, const wchar_t *s2);
 
-bool kdmIsSystemObjectExist(LPCWSTR rootDirectory, LPCWSTR objectName);
+bool kdm_system_object_exist(LPCWSTR root_directory, LPCWSTR object_name);
 
-bool kdmCreateDriverEntry(LPCWSTR driverPath, LPCWSTR keyName);
-bool kdmLoadDriver(LPCWSTR driverName, LPCWSTR driverPath, bool unloadPrevDriver);
+bool kdm_create_driver_entry(LPCWSTR driver_path, LPCWSTR key_name);
+bool kdm_load_driver(LPCWSTR driver_name, LPCWSTR driver_path, bool unload_prev_driver);
 
 #endif
