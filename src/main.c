@@ -29,15 +29,39 @@ int main(int argc, const char** argv) {
 
   if (!kdm_system_object_exist(L"\\Device", L"MsIo")) {
     if (!kdm_write_to_file("WinIo.sys", winio, sizeof(winio))) {
-      log_error("Cant extract vuln driver");
+      log_error("Can't extract vuln driver");
       kdm_free_target(driver_buffer);
       return -1;
     }
-    kdm_load_driver(L"MsIo64", L"WinIo.sys", true);
 
-    // do stuff
+    if (!kdm_load_driver(L"MsIo64", L"WinIo.sys", true)) {
+      log_error("Failed to load vuln driver");
+      kdm_free_target(driver_buffer);
+      return -1;
+    }
 
-    kdm_unload_driver(L"MsIo64", true);
+    HANDLE device_handle;
+    if (!kdm_open_driver(L"MsIo64", SYNCHRONIZE | WRITE_DAC | GENERIC_WRITE | GENERIC_READ, &device_handle)) {
+      log_error("Can't open handle to vuln driver");
+      kdm_free_target(driver_buffer);
+      return -1;
+    }
+
+    PSECURITY_DESCRIPTOR driver_sd;
+    PACL default_acl;
+    if (!kdm_create_system_admin_access_sd(&driver_sd, &default_acl)) {
+      log_error("Can't set vuln driver device security descriptor");
+      kdm_free_target(driver_buffer);
+      return -1;
+    }
+
+    
+
+    if (!kdm_unload_driver(L"MsIo64", true)) {
+      log_warn("Can't unload vuln driver");
+      kdm_free_target(driver_buffer);
+      return -1;
+    }
   }
 
   kdm_free_target(driver_buffer);

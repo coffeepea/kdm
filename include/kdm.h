@@ -6,6 +6,19 @@
 #include <stdio.h>
 #include <Windows.h>
 
+#define FILE_DEVICE_WINIO       (DWORD)0x00008010
+#define FILE_DEVICE_ASUSIO      (DWORD)0x0000A040
+
+#define WINIO_IOCTL_INDEX       (DWORD)0x810
+
+#define WINIO_MAP_FUNCID        (DWORD)0x810
+#define WINIO_UNMAP_FUNCID      (DWORD)0x811
+#define WINIO_READMSR           (DWORD)0x816
+
+#define IOCTL_WINIO_MAP_USER_PHYSICAL_MEMORY   CTL_CODE(FILE_DEVICE_WINIO, WINIO_MAP_FUNCID, METHOD_BUFFERED, FILE_ANY_ACCESS) //0x80102040
+#define IOCTL_WINIO_UNMAP_USER_PHYSICAL_MEMORY CTL_CODE(FILE_DEVICE_WINIO, WINIO_UNMAP_FUNCID, METHOD_BUFFERED, FILE_ANY_ACCESS) //0x80102044
+#define IOCTL_WINIO_READMSR                    CTL_CODE(FILE_DEVICE_WINIO, WINIO_READMSR, METHOD_BUFFERED, FILE_ANY_ACCESS)
+
 PVOID kdm_get_heap(void);
 PVOID kdm_alloc_heap(SIZE_T size);
 void  kdm_free_heap(PVOID base_address);
@@ -35,5 +48,8 @@ void  kdm_free_target(char* buffer);
 bool kdm_create_driver_entry(LPCWSTR driver_path, LPCWSTR key_name);
 bool kdm_load_driver(LPCWSTR driver_name, LPCWSTR driver_path, bool unload_prev_driver);
 bool kdm_unload_driver(LPCWSTR driver_name, bool remove);
+
+bool kdm_open_driver(LPCWSTR driver_name, ACCESS_MASK desired_access, PHANDLE device_handle);
+bool kdm_create_system_admin_access_sd(PSECURITY_DESCRIPTOR* security_descriptor, PACL* default_acl);
 
 #endif

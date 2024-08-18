@@ -393,3 +393,100 @@ bool kdm_unload_driver(LPCWSTR driver_name, bool remove) {
 
   return false;
 }
+
+bool kdm_open_driver(LPCWSTR driver_name, ACCESS_MASK desired_access, PHANDLE device_handle) {
+  WCHAR device_path[MAX_PATH + 1];
+  RtlZeroMemory(device_path, sizeof(device_path));
+
+  if (FAILED(StringCchPrintf(device_path, MAX_PATH, L"\\DosDevices\\%wS", driver_name)))
+    return false;
+
+  UNICODE_STRING device_path_us;
+  OBJECT_ATTRIBUTES device_path_oa;
+
+  HANDLE device;
+  IO_STATUS_BLOCK iosb;
+
+  RtlInitUnicodeString(&device_path_us, device_path);
+  InitializeObjectAttributes(&device_path_oa, &device_path_us, OBJ_CASE_INSENSITIVE, NULL, NULL);
+
+  NTSTATUS status = NtCreateFile(&device, desired_access, &device_path_oa, &iosb, NULL, 0, 0, FILE_OPEN, FILE_NON_DIRECTORY_FILE | FILE_SYNCHRONOUS_IO_NONALERT, NULL, 0);
+
+  if (status == STATUS_OBJECT_NAME_NOT_FOUND
+   || status == STATUS_NO_SUCH_DEVICE)
+  {
+    RtlZeroMemory(device_path, sizeof(device_path));
+
+    if (FAILED(StringCchPrintf(device_path, MAX_PATH, "\\Device\\%wS", driver_name)))
+      return false;
+      
+    RtlInitUnicodeString(&device_path_us, device_path);
+    InitializeObjectAttributes(&device_path_oa, &device_path_us, OBJ_CASE_INSENSITIVE, NULL, NULL);
+
+    status = NtCreateFile(&device, desired_access, &device_path_oa, &iosb, NULL, 0, 0, FILE_OPEN, FILE_NON_DIRECTORY_FILE | FILE_SYNCHRONOUS_IO_NONALERT, NULL, 0);
+  }
+
+  if (NT_SUCCESS(status)) {
+    if (device_handle)
+      *device_handle = device;
+
+    return true;
+  }
+
+  return false;
+}
+
+bool kdm_create_system_admin_access_sd(PSECURITY_DESCRIPTOR* security_descriptor, PACL* default_acl) {
+  PSECURITY_DESCRIPTOR sd = (PSECURITY_DESCRIPTOR)kdm_alloc_heap(sizeof(SECURITY_DESCRIPTOR));
+  if (!sd)
+    return false;
+
+  ULONG acl_size = 0;
+  acl_size += RtlLengthRequiredSid(1); //LocalSystem sid
+  acl_size += RtlLengthRequiredSid(2); //Admin group sid
+  acl_size += sizeof(ACL);
+  acl_size += 2 * (sizeof(ACCESS_ALLOWED_ACE) - sizeof(ULONG));
+
+  PACL acl = (PACL)kdm_alloc_heap(acl_size);
+  if (!acl) {
+    kdm_free_heap(sd);
+    return false;
+  }
+
+  if (!NT_SUCCESS(RtlCreateAcl(acl, acl_size, ACL_REVISION))) {
+    kdm_free_heap(sd);
+    kdm_free_heap(acl);
+    return false;
+  }
+
+  SID_IDENTIFIER_AUTHORITY nt_authority = SECURITY_NT_AUTHORITY;
+
+  UCHAR sid_buffer[2 * sizeof(SID)];
+  RtlZeroMemory(sid_buffer, sizeof(sid_buffer));
+
+  // Local System - Generic All
+  RtlInitializeSid(sid_buffer, &nt_authority, 1);
+  *(RtlSubAuthoritySid(sid_buffer, 0)) = SECURITY_LOCAL_SYSTEM_RID;
+  
+  RtlAddAccessAllowedAce(acl, ACL_REVISION, GENERIC_ALL, (PSID)sid_buffer);
+
+  // Admins - Generic All
+  RtlInitializeSid(sid_buffer, &nt_authority, 2);
+  *(RtlSubAuthoritySid(sid_buffer, 0)) = SECURITY_BUILTIN_DOMAIN_RID;
+  *(RtlSubAuthoritySid(sid_buffer, 1)) = DOMAIN_ALIAS_RID_ADMINS;
+  
+  RtlAddAccessAllowedAce(acl, ACL_REVISION, GENERIC_ALL, (PSID)sid_buffer);
+
+  if (!NT_SUCCESS(RtlCreateSecurityDescriptor(sd, SECURITY_DESCRIPTOR_REVISION1))
+   || !NT_SUCCESS(RtlSetDaclSecurityDescriptor(sd, TRUE, acl, FALSE)))
+  {
+    kdm_free_heap(sd);
+    kdm_free_heap(acl);
+    return false;
+  }
+
+  *security_descriptor = sd;
+  *default_acl = acl;
+
+  return true;
+}
